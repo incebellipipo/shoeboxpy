@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=64", "setuptools_scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -34,3 +34,7 @@ where = ["src"]
 version = {attr = "shoeboxpy.__version__"}
 
 [tool.setuptools.package-data]
+
+[tool.setuptools_scm]
+version_file = "src/shoeboxpy/__version__.py"
+version_scheme = 'post-release'

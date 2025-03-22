@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 from shoeboxpy.model6dof import Shoebox
 
+
 class TestShoeboxModel6DOF(unittest.TestCase):
     def setUp(self):
         self.L = 2.0
@@ -23,9 +24,9 @@ class TestShoeboxModel6DOF(unittest.TestCase):
         self.assertTrue(np.isclose(shoebox.m, expected_mass))
 
         # Uniform rectangular box moments of inertia.
-        Ix = (1/12) * expected_mass * (self.B**2 + self.T**2)
-        Iy = (1/12) * expected_mass * (self.L**2 + self.T**2)
-        Iz = (1/12) * expected_mass * (self.L**2 + self.B**2)
+        Ix = (1 / 12) * expected_mass * (self.B**2 + self.T**2)
+        Iy = (1 / 12) * expected_mass * (self.L**2 + self.T**2)
+        Iz = (1 / 12) * expected_mass * (self.L**2 + self.B**2)
         np.testing.assert_allclose(shoebox.MRB[3, 3], Ix)
         np.testing.assert_allclose(shoebox.MRB[4, 4], Iy)
         np.testing.assert_allclose(shoebox.MRB[5, 5], Iz)
@@ -51,10 +52,12 @@ class TestShoeboxModel6DOF(unittest.TestCase):
         # Testing that nonzero restoring parameters change the boat's angular state.
         GM_phi = 0.1
         GM_theta = 0.1
-        shoebox = Shoebox(L=self.L, B=self.B, T=self.T, GM_phi=GM_phi, GM_theta=GM_theta)
+        shoebox = Shoebox(
+            L=self.L, B=self.B, T=self.T, GM_phi=GM_phi, GM_theta=GM_theta
+        )
         # Set a small roll and pitch disturbance
-        shoebox.eta[3] = 0.1   # Roll
-        shoebox.eta[4] = -0.05 # Pitch
+        shoebox.eta[3] = 0.1  # Roll
+        shoebox.eta[4] = -0.05  # Pitch
         initial_eta, initial_nu = shoebox.get_states()
         shoebox.step(dt=0.01)
         new_eta, new_nu = shoebox.get_states()
@@ -63,6 +66,7 @@ class TestShoeboxModel6DOF(unittest.TestCase):
         self.assertFalse(np.isclose(new_eta[3], initial_eta[3]))
         self.assertFalse(np.isclose(new_eta[4], initial_eta[4]))
         self.assertFalse(np.allclose(new_nu, initial_nu))
+
 
 if __name__ == "__main__":
     unittest.main()

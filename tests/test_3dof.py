@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 from shoeboxpy.model3dof import Shoebox
 
+
 class TestShoebox(unittest.TestCase):
     def setUp(self):
         # Define ship dimensions and create an instance of Shoebox.
@@ -38,10 +39,15 @@ class TestShoebox(unittest.TestCase):
             self.shoebox.step(tau=tau, dt=dt)
         eta_new, nu_new = self.shoebox.get_states()
 
-        self.assertFalse(np.allclose(eta_initial, eta_new),
-                         "State eta should change when forces are applied.")
-        self.assertFalse(np.allclose(nu_initial, nu_new),
-                         "State nu should change when forces are applied.")
+        self.assertFalse(
+            np.allclose(eta_initial, eta_new),
+            "State eta should change when forces are applied.",
+        )
+        self.assertFalse(
+            np.allclose(nu_initial, nu_new),
+            "State nu should change when forces are applied.",
+        )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

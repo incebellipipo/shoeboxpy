@@ -4,6 +4,7 @@ import typing as tp
 
 import shoeboxpy.utils as utils
 from shoeboxpy.utils import skew
+import shoeboxpy.animate
 
 
 class Shoebox:
@@ -55,16 +56,16 @@ class Shoebox:
         alpha_q: float = 0.1,
         alpha_r: float = 0.1,
         # Damping factors
-        beta_u: float = 0.05,
-        beta_v: float = 0.05,
-        beta_w: float = 0.05,
-        beta_p: float = 0.05,
-        beta_q: float = 0.05,
-        beta_r: float = 0.05,
+        beta_u: float = 0.25,
+        beta_v: float = 0.25,
+        beta_w: float = 0.25,
+        beta_p: float = 0.25,
+        beta_q: float = 0.25,
+        beta_r: float = 0.25,
         # Restoring parameters
-        GM_phi: float = 0.0,    # metacentric height in roll
+        GM_phi: float = 0.0,  # metacentric height in roll
         GM_theta: float = 0.0,  # metacentric height in pitch
-        g: float = 9.81,        # gravitational acceleration
+        g: float = 9.81,  # gravitational acceleration
         # Initial states
         eta0: npt.NDArray[np.float64] = np.zeros(6),
         nu0: npt.NDArray[np.float64] = np.zeros(6),
@@ -95,25 +96,29 @@ class Shoebox:
         self.MRB = np.diag([self.m, self.m, self.m, Ix, Iy, Iz])
 
         # 3) Added mass (diagonal)
-        self.MA = np.diag([
-            alpha_u * self.m,
-            alpha_v * self.m,
-            alpha_w * self.m,
-            alpha_p * Ix,
-            alpha_q * Iy,
-            alpha_r * Iz,
-        ])
+        self.MA = np.diag(
+            [
+                alpha_u * self.m,
+                alpha_v * self.m,
+                alpha_w * self.m,
+                alpha_p * Ix,
+                alpha_q * Iy,
+                alpha_r * Iz,
+            ]
+        )
         self.M_eff = self.MRB + self.MA
 
         # 4) Linear damping (diagonal)
-        self.D = np.diag([
-            beta_u * self.m,
-            beta_v * self.m,
-            beta_w * self.m,
-            beta_p * Ix,
-            beta_q * Iy,
-            beta_r * Iz,
-        ])
+        self.D = np.diag(
+            [
+                beta_u * self.m,
+                beta_v * self.m,
+                beta_w * self.m,
+                beta_p * Ix,
+                beta_q * Iy,
+                beta_r * Iz,
+            ]
+        )
 
         self.invM_eff = np.linalg.inv(self.M_eff)
 
@@ -124,7 +129,7 @@ class Shoebox:
 
         # Store states
         self.eta = eta0.astype(float)
-        self.nu  = nu0.astype(float)
+        self.nu = nu0.astype(float)
 
     def J(self, eta):
         r"""
@@ -137,8 +142,8 @@ class Shoebox:
 
         cphi = np.cos(phi)
         sphi = np.sin(phi)
-        cth  = np.cos(theta)
-        sth  = np.sin(theta)
+        cth = np.cos(theta)
+        sth = np.sin(theta)
         cpsi = np.cos(psi)
         spsi = np.sin(psi)
 
@@ -155,26 +160,21 @@ class Shoebox:
         R32 = sphi * cth
         R33 = cphi * cth
 
-        R_lin = np.array([
-            [R11, R12, R13],
-            [R21, R22, R23],
-            [R31, R32, R33]
-        ])
+        R_lin = np.array([[R11, R12, R13], [R21, R22, R23], [R31, R32, R33]])
 
         eps = 1e-9
-        tth  = sth / max(cth, eps)
+        tth = sth / max(cth, eps)
         scth = 1.0 / max(cth, eps)
 
-        T_ang = np.array([
-            [1.0, sphi*tth,  cphi*tth],
-            [0.0, cphi,      -sphi   ],
-            [0.0, sphi*scth, cphi*scth]
-        ])
+        T_ang = np.array(
+            [
+                [1.0, sphi * tth, cphi * tth],
+                [0.0, cphi, -sphi],
+                [0.0, sphi * scth, cphi * scth],
+            ]
+        )
 
-        return np.block([
-            [R_lin, np.zeros((3,3))],
-            [np.zeros((3,3)), T_ang]
-        ])
+        return np.block([[R_lin, np.zeros((3, 3))], [np.zeros((3, 3)), T_ang]])
 
     def C_RB(self, nu: np.ndarray) -> np.ndarray:
         r"""
@@ -183,25 +183,25 @@ class Shoebox:
         """
         u, v, w, p, q, r = nu
 
-        m  = self.m
-        Ix = self.MRB[3,3]
-        Iy = self.MRB[4,4]
-        Iz = self.MRB[5,5]
+        m = self.m
+        Ix = self.MRB[3, 3]
+        Iy = self.MRB[4, 4]
+        Iz = self.MRB[5, 5]
 
         # Build the 6x6 in block form:
         # top-left = 0
         # top-right = -m * S([p,q,r])
         # bottom-left = -m * S([u,v,w])
         # bottom-right = - S(I * [p,q,r])
-        C = np.zeros((6,6))
+        C = np.zeros((6, 6))
 
         v_b = np.array([u, v, w])
         w_b = np.array([p, q, r])
-        Iw_b = np.array([Ix*p, Iy*q, Iz*r])  # diagonal inertia times w
+        Iw_b = np.array([Ix * p, Iy * q, Iz * r])  # diagonal inertia times w
 
         C[:3, :3] = 0.0
         C[:3, 3:] = -m * skew(w_b)
-        C[3:, :3] = -skew(m*v_b)
+        C[3:, :3] = -skew(m * v_b)
         C[3:, 3:] = -skew(Iw_b)
 
         return C
@@ -212,32 +212,32 @@ class Shoebox:
         """
         u, v, w, p, q, r = nu
 
-        Xudot = self.MA[0,0]
-        Yvdot = self.MA[1,1]
-        Zwdot = self.MA[2,2]
-        Kpdot = self.MA[3,3]
-        Mqdot = self.MA[4,4]
-        Nrdot = self.MA[5,5]
+        Xudot = self.MA[0, 0]
+        Yvdot = self.MA[1, 1]
+        Zwdot = self.MA[2, 2]
+        Kpdot = self.MA[3, 3]
+        Mqdot = self.MA[4, 4]
+        Nrdot = self.MA[5, 5]
 
         # Similar block structure, using "added mass" equivalents
-        C = np.zeros((6,6))
+        C = np.zeros((6, 6))
 
         v_b = np.array([u, v, w])
         w_b = np.array([p, q, r])
 
         # linear part: M_A,lin * v_b
         # rotational part: M_A,rot * w_b
-        Mlin_v = np.array([Xudot*u, Yvdot*v, Zwdot*w])
-        Mrot_w = np.array([Kpdot*p, Mqdot*q, Nrdot*r])
+        Mlin_v = np.array([Xudot * u, Yvdot * v, Zwdot * w])
+        Mrot_w = np.array([Kpdot * p, Mqdot * q, Nrdot * r])
 
         # top-left = 0
         # top-right = - skew( M_A,lin v_b )
         # bottom-left = - skew( M_A,lin v_b )
         # bottom-right = - skew( M_A,rot w_b )
         C[:3, :3] = 0.0
-        C[:3, 3:] = - skew(Mlin_v)
-        C[3:, :3] = - skew(Mlin_v)
-        C[3:, 3:] = - skew(Mrot_w)
+        C[:3, 3:] = -skew(Mlin_v)
+        C[3:, :3] = -skew(Mlin_v)
+        C[3:, 3:] = -skew(Mrot_w)
 
         return C
 
@@ -284,7 +284,7 @@ class Shoebox:
 
         # 2) Coriolis/centripetal
         C_RB_ = self.C_RB(nu)
-        C_A_  = self.C_A(nu)
+        C_A_ = self.C_A(nu)
         C_ = C_RB_ + C_A_
 
         # 3) Restoring
@@ -316,22 +316,46 @@ class Shoebox:
 
         # -- k2 --
         eta_temp = eta0 + 0.5 * dt * k1_eta
-        nu_temp  = nu0  + 0.5 * dt * k1_nu
+        nu_temp = nu0 + 0.5 * dt * k1_nu
         k2_eta, k2_nu = self.dynamics(eta_temp, nu_temp, tau, tau_ext)
 
         # -- k3 --
         eta_temp = eta0 + 0.5 * dt * k2_eta
-        nu_temp  = nu0  + 0.5 * dt * k2_nu
+        nu_temp = nu0 + 0.5 * dt * k2_nu
         k3_eta, k3_nu = self.dynamics(eta_temp, nu_temp, tau, tau_ext)
 
         # -- k4 --
         eta_temp = eta0 + dt * k3_eta
-        nu_temp  = nu0  + dt * k3_nu
+        nu_temp = nu0 + dt * k3_nu
         k4_eta, k4_nu = self.dynamics(eta_temp, nu_temp, tau, tau_ext)
 
         # Combine
-        self.eta = eta0 + (dt / 6.0) * (k1_eta + 2.0*k2_eta + 2.0*k3_eta + k4_eta)
-        self.nu  = nu0  + (dt / 6.0) * (k1_nu  + 2.0*k2_nu  + 2.0*k3_nu  + k4_nu)
+        self.eta = eta0 + (dt / 6.0) * (k1_eta + 2.0 * k2_eta + 2.0 * k3_eta + k4_eta)
+        self.nu = nu0 + (dt / 6.0) * (k1_nu + 2.0 * k2_nu + 2.0 * k3_nu + k4_nu)
 
     def get_states(self):
         return self.eta.copy(), self.nu.copy()
+
+
+if __name__ == "__main__":
+    # Example usage
+    dt = 0.01
+    shoebox = Shoebox(
+        L=1.0,
+        B=0.3,
+        T=0.03,
+        eta0=np.array([0.0, 0.0, 0.0, 0.1, 0.1, 0.1]),
+        nu0=np.zeros(6),
+        GM_phi=0.2,
+        GM_theta=0.2,
+    )
+
+    eta_history = []
+
+    # Simulate for 10 seconds with no control input
+    for _ in range(int(10 / dt)):
+        shoebox.step(tau=np.array([1.0, 0.2, 0.0, 0.0, 0.0, 0.1]), dt=dt)
+        eta_history.append(shoebox.eta.copy())
+
+    eta_history = np.array(eta_history)
+    shoeboxpy.animate.animate_history(eta_history, dt=dt, L=1.0, B=0.3, T=0.2)
