@@ -21,11 +21,21 @@ The 6-DOF model represents a rectangular "shoebox" vessel with the following sta
   $\eta = [x, y, z, \phi, \theta, \psi]$
 - Velocities in the body frame:
   $\nu = [u, v, w, p, q, r]$
+### 3-DOF Model
+The 3-DOF model simplifies the dynamics to planar motion (surge, sway, yaw) with states:
+- Position and orientation in the inertial frame:
+  $\eta = [x, y, \psi]$
+- Velocities in the body frame:
+  $\nu = [u, v, r]$
+  
+### Dynamics
+Dynamics for both models are governed by:
 
-The dynamics are governed by:
 $$
-\dot{\eta} = J(\eta)\nu\\
-(M_{RB} + M_A)\dot{\nu} + (C_{RB}(\nu) + C_A(\nu))\nu + D\nu = \tau + \tau_{\mathrm{ext}} + g_{\mathrm{restoring}}(\eta)
+\begin{aligned}
+& \dot{\eta} = J(\eta)\nu\\
+& (M_{RB} + M_A)\dot{\nu} + (C_{RB}(\nu) + C_A(\nu))\nu + D\nu = \tau + \tau_{\mathrm{ext}} + g_{\mathrm{restoring}}(\eta)
+\end{aligned}
 $$
 
 where:
@@ -34,21 +44,6 @@ where:
 - $D$ is the linear damping matrix.
 - $\tau$ and $\tau_{\mathrm{ext}}$ are control and external forces/moments.
 - $g_{\mathrm{restoring}}(\eta)$ represents restoring forces in roll and pitch.
-
-### 3-DOF Model
-The 3-DOF model simplifies the dynamics to planar motion (surge, sway, yaw) with states:
-- Position and orientation in the inertial frame:
-  $\eta = [x, y, \psi]$
-- Velocities in the body frame:
-  $\nu = [u, v, r]$
-
-The dynamics are:
-$$
-\dot{\eta} = J(\psi)\nu \\
-(M_{RB} + M_A)\dot{\nu} + (C_{RB}(\nu) + C_A(\nu))\nu + D\nu = \tau
-$$
-
-where the terms are analogous to the 6-DOF model but reduced to 3-DOF.
 
 Both models use a 4th-order Runge-Kutta method for numerical integration, allowing for accurate simulation of vessel dynamics under various forces and moments.
 
