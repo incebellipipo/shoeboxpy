@@ -27,7 +27,7 @@ The 3-DOF model simplifies the dynamics to planar motion (surge, sway, yaw) with
   $\eta = [x, y, \psi]$
 - Velocities in the body frame:
   $\nu = [u, v, r]$
-  
+
 ### Dynamics
 Dynamics for both models are governed by:
 
@@ -46,6 +46,8 @@ where:
 - $g_{\mathrm{restoring}}(\eta)$ represents restoring forces in roll and pitch.
 
 Both models use a 4th-order Runge-Kutta method for numerical integration, allowing for accurate simulation of vessel dynamics under various forces and moments.
+
+Read the [theory](./docs/theory.md) for more details.
 
 ## Example
 
