@@ -80,7 +80,12 @@ $$
   \mathbf{D}
   =
   \mathrm{diag}\bigl(
-    d_u,d_v,d_w,d_p,d_q,d_r
+    d_u u,
+    d_v v,
+    d_w w,
+    d_p p,
+    d_q q,
+    d_r r
   \bigr).
 $$
 
@@ -209,6 +214,14 @@ d_pp,
 d_qq,
 d_rr
 \end{bmatrix}^\top.
+$$
+
+### Hydrostatic Buoyancy (Heave)
+
+For small vertical displacements, the hydrostatic buoyancy force in heave is given by:
+
+$$
+F_z = -\rho g L B\, z
 $$
 
 ### Restoring (Roll/Pitch)

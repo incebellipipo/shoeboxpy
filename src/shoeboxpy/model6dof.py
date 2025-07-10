@@ -86,7 +86,6 @@ class Shoebox:
         """
         # 1) Rigid-body mass from volume (the code uses full L*B*T)
         self.m = rho * L * B * T
-        print(f"Mass: {self.m:.2f} kg")
 
         # 2) Moments of inertia (uniform box, diagonal)
         Ix = (1.0 / 12.0) * self.m * (B**2 + T**2)
@@ -126,6 +125,10 @@ class Shoebox:
         self.GM_phi = GM_phi
         self.GM_theta = GM_theta
         self.g = g
+        # Hydrostatic stiffness for vertical buoyancy restoring: rho*g*L*B
+        self.L = L
+        self.B = B
+        self.C_h = rho * g * L * B
 
         # Store states
         self.eta = eta0.astype(float)
@@ -242,23 +245,15 @@ class Shoebox:
         return C
 
     def restoring_forces(self, eta: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-        r"""
-        Compute roll/pitch restoring moment in BODY frame for small angles:
-
-        .. math::
-            K = - m g GM_{\phi}  \phi \\
-            M = - m g GM_{\theta}  \theta
-
-        :param eta: :math:`[x, y, z, \phi, \theta, \psi]`
-        :return: Restoring forces :math:`[0, 0, 0, K, M, 0]`
-        """
-        phi = eta[3]
-        theta = eta[4]
-
-        K_rest = -self.m * self.g * self.GM_phi * phi
-        M_rest = -self.m * self.g * self.GM_theta * theta
-
-        return np.array([0.0, 0.0, 0.0, K_rest, M_rest, 0.0])
+        """Compute hydrostatic restoring forces for vertical (z), roll, and pitch."""
+        # unpack state: x, y, z, phi, theta, psi
+        _, _, z, phi, theta, _ = eta
+        # vertical buoyancy restoring: hydrostatic stiffness * displacement
+        F_z = - self.C_h * z
+        # roll & pitch restoring moments
+        K_rest = - self.m * self.g * self.GM_phi * phi
+        M_rest = - self.m * self.g * self.GM_theta * theta
+        return np.array([0.0, 0.0, F_z, K_rest, M_rest, 0.0])
 
     def dynamics(
         self,
@@ -340,6 +335,7 @@ class Shoebox:
 if __name__ == "__main__":
     # Example usage
     dt = 0.01
+    T_total = 300.0
     shoebox = Shoebox(
         L=1.0,
         B=0.3,
@@ -353,7 +349,7 @@ if __name__ == "__main__":
     eta_history = []
 
     # Simulate for 10 seconds with no control input
-    for _ in range(int(10 / dt)):
+    for t in range(int(T_total / dt)):
         shoebox.step(tau=np.array([1.0, 0.2, 0.0, 0.0, 0.0, 0.1]), dt=dt)
         eta_history.append(shoebox.eta.copy())
 
