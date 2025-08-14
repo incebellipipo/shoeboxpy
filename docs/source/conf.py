@@ -93,8 +93,9 @@ html_static_path = ["_static"]
 
 # Intersphinx mappings for cross-references
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3', {}),
-    'numpy': ('https://numpy.org/doc/stable/', {}),
+    # Second element must be None or a path/objects.inv – empty dict breaks Sphinx >=8
+    'python': ('https://docs.python.org/3', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
 }
 
 todo_include_todos = True
