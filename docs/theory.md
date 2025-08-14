@@ -1,313 +1,146 @@
-## Geometry and Rigid‐Body Inertia
+# Theory Overview
 
-Let:
-- $L$ = length of the box,
-- $B$ = width (beam),
-- $T$ = height/depth,
-- $\rho$ = fluid density (e.g. 1000 kg/m³ for water).
+Concise reference for the 6‑DOF rectangular box (shoebox) model used in this project.
+
+## 1. Geometry & Rigid‑Body Inertia
+
+Symbols:
+
+| Symbol | Meaning | Units (example) |
+|--------|---------|-----------------|
+| $L$ | Length | m |
+| $B$ | Beam / width | m |
+| $T$ | Height / depth | m |
+| $\rho$ | Fluid density | kg m$^{-3}$ (1000 for water) |
+| $m$ | Mass | kg |
+| $I_x,I_y,I_z$ | Principal inertias about body axes | kg m$^2$ |
 
 ### Mass
 
-Computing the **mass** of the rectangular prism (assuming it is fully of density $\rho$) as
-$$
-  m = \rho LBT.
-$$
+For a full solid of uniform density:
+$$ m = \rho L B T. $$
 
+### Moments of Inertia (through centroid)
 
-### Moments of Inertia
-
-For a uniform **rectangular prism** of mass $m$ with dimensions $(L,B,T)$, the **principal moments of inertia** about its center (aligned with the box axes) are:
-
-$$
-  I_x = \frac{1}{12}m\bigl(B^2 + T^2\bigr),
-  \quad
-  I_y = \frac{1}{12}m\bigl(L^2 + T^2\bigr),
-  \quad
-  I_z = \frac{1}{12}m\bigl(L^2 + B^2\bigr).
-$$
-
-Hence, the **rigid‐body mass–inertia matrix** $\mathbf{M}_{\mathrm{RB}}$ (assuming no products of inertia and center of gravity at the body origin) is:
-
-$$
-  \mathbf{M}_{\mathrm{RB}}
-  =
-  \mathrm{diag}(m,m,m,I_x,I_y,I_z).
-$$
-
-## Added Mass and Damping
-
-### Added Mass
-
-**Diagonal added mass** approximates hydrodynamic effects. Each entry is a fraction of the corresponding rigid‐body mass or inertia:
-
-$$
-  \mathbf{M}_{\mathrm{A}}
-  =
-  \mathrm{diag}\bigl(
-    X_{\dot{u}},Y_{\dot{v}},Z_{\dot{w}},K_{\dot{p}},M_{\dot{q}},N_{\dot{r}}
-  \bigr).
-$$
-
-$$
-X_{\dot{u}} = \alpha_um,
-\quad
-Y_{\dot{v}} = \alpha_vm,
-\quad
-Z_{\dot{w}} = \alpha_wm,
-\quad
-K_{\dot{p}} = \alpha_pI_x,
-\quad
-M_{\dot{q}} = \alpha_qI_y,
-\quad
-N_{\dot{r}} = \alpha_rI_z.
-$$
-
-Hence the **effective mass** is
-
-$$
-  \mathbf{M}_{\mathrm{eff}}
-  =
-  \mathbf{M}_{\mathrm{RB}}
-  +
-  \mathbf{M}_{\mathrm{A}}.
-$$
-
-### Linear Damping
-
-For each DOF, you have a **linear damping coefficient**, also forming a **diagonal** matrix $\mathbf{D}$. Each diagonal entry is typically some dimensionless factor times $m$ or the inertia:
-
-$$
-  \mathbf{D}
-  =
-  \mathrm{diag}\bigl(
-    d_u u,
-    d_v v,
-    d_w w,
-    d_p p,
-    d_q q,
-    d_r r
-  \bigr).
-$$
-
-
-## Kinematics
-
-$$
-\eta
-=
-\begin{bmatrix}
-x ,
-y ,
-z ,
-\phi ,
-\theta ,
-\psi
-\end{bmatrix} ^\top
-,\quad
-\nu
-=
-\begin{bmatrix}
-u ,
-v ,
-w ,
-p ,
-q ,
-r
-\end{bmatrix}^\top,
-$$
-
-where $\eta$ is position/orientation in an inertial frame, and $\nu$ is velocity in the body frame. The **kinematic** relation is:
-
-$$
-  \dot{\eta}
-  =
-  \mathbf{J}(\eta)\nu,
-$$
-
-where $\mathbf{J}(\eta)$ is a **6×6** block‐diagonal matrix:
-
-$$
-\mathbf{J}(\eta)
-=
-\begin{bmatrix}
-R_{\mathrm{lin}}(\phi,\theta,\psi) & \mathbf{0}_{3\times3}\\
-\mathbf{0}_{3\times3} & T_{\mathrm{ang}}(\phi,\theta)
-\end{bmatrix}.
-$$
-
-- $R_{\mathrm{lin}}(\phi,\theta,\psi)$ is the standard rotation matrix $\mathbf{R}_z(\psi)\mathbf{R}_y(\theta)\mathbf{R}_x(\phi)$ for the linear velocities.
-- $T_{\mathrm{ang}}(\phi,\theta)$ maps $(p,q,r)$ to the Euler‐angle rates $(\dot{\phi},\dot{\theta},\dot{\psi})$.
-
-
-## Dynamics
-
-### Full Equation
-
-The **6‐DOF** body‐frame dynamic equation is:
-
-$$
-  (\mathbf{M}_{\mathrm{RB}} + \mathbf{M}_{\mathrm{A}})\dot{\nu}
-  +
-  \bigl(\mathbf{C}_{\mathrm{RB}}(\nu) + \mathbf{C}_{\mathrm{A}}(\nu)\bigr)\nu
-  +
-  \mathbf{D}\nu
-  =
-  \tau
-  +
-  \tau_{\mathrm{ext}}
-  +
-  \mathbf{g}_{\mathrm{restoring}}(\eta).
-$$
-
-where:
-
-- $\tau$ and $\tau_{\mathrm{ext}}$ are **control** and **external** forces/moments in the body frame.
-- $\mathbf{g}_{\mathrm{restoring}}(\eta)$ is your simple roll/pitch restoring.
-
-### Coriolis and Centripetal
-
-You include **rigid‐body** and **added‐mass** Coriolis/centripetal terms:
-
-1. **Rigid‐Body Coriolis** $\mathbf{C}_{\mathrm{RB}}(\nu)$
-
-   For diagonal $\mathbf{M}_{\mathrm{RB}}$ and center of gravity at the origin:
-
-   $$
-   \mathbf{C}_{\mathrm{RB}}(\nu)
-   =
-   \begin{bmatrix}
-   \mathbf{0} & -mS(\omega) \\
-   -mS(\mathbf{v}) & -S(\mathbf{I}\omega)
-   \end{bmatrix},
-   $$
-   where:
-   - $\mathbf{v}=[u,v,w]^\top$,
-   - $\omega=[p,q,r]^\top$,
-   - $\mathbf{I}\omega = [I_xp, I_yq, I_zr]$,
-   - $S(\cdot)$ is the skew‐symmetric operator.
-
-2. **Added‐Mass Coriolis** $\mathbf{C}_{\mathrm{A}}(\nu)$
-
-   With diagonal $\mathbf{M}_{\mathrm{A}}=\mathrm{diag}(X_{\dot{u}}, \dots, N_{\dot{r}})$, we have an analogous structure:
-
-   $$
-   \mathbf{C}_{\mathrm{A}}(\nu)
-   =
-   \begin{bmatrix}
-   \mathbf{0} & -S(\mathbf{M}_{\mathrm{A,lin}}\mathbf{v}) \\
-   -S(\mathbf{M}_{\mathrm{A,lin}}\mathbf{v}) & -S(\mathbf{M}_{\mathrm{A,rot}}\omega)
-   \end{bmatrix}.
-   $$
-
-### Damping
-
-Linear damping:
-
-$$
-\mathbf{D}\nu
-=
-\begin{bmatrix}
-d_uu,
-d_vv,
-d_ww,
-d_pp,
-d_qq,
-d_rr
-\end{bmatrix}^\top.
-$$
-
-### Hydrostatic Buoyancy (Heave)
-
-For small vertical displacements, the hydrostatic buoyancy force in heave is given by:
-
-$$
-F_z = -\rho g L B\, z
-$$
-
-### Restoring (Roll/Pitch)
-
-For small angles, the restoring moment is:
-
-$$
-\mathbf{g}_{\mathrm{restoring}}(\eta)
-=
-\begin{bmatrix}
-0 ,
-0 ,
-0 ,
--mg(\mathrm{GM}_{\phi})\phi ,
--mg(\mathrm{GM}_{\theta})\theta ,
-0
-\end{bmatrix},
-$$
-where $\mathrm{GM}_\phi,\mathrm{GM}_\theta$ are **metacentric heights** in roll/pitch.
-
-## Integration
-
-Numerically, you solve the system:
-
+For a rectangular prism (axes aligned with edges):
 $$
 \begin{aligned}
-&\dot{\eta} = \mathbf{J}(\eta)\nu,\\
-&\mathbf{M}_{\mathrm{eff}}\dot{\nu}
-  + \bigl(\mathbf{C}_{\mathrm{RB}}+\mathbf{C}_{\mathrm{A}}\bigr)\nu
-  + \mathbf{D}\nu
-  = \tau + \tau_{\mathrm{ext}} + \mathbf{g}_{\mathrm{restoring}}(\eta).
+I_x &= \tfrac{1}{12} m (B^2 + T^2),\\
+I_y &= \tfrac{1}{12} m (L^2 + T^2),\\
+I_z &= \tfrac{1}{12} m (L^2 + B^2).\
 \end{aligned}
 $$
 
-Your code does a **4th‐order Runge–Kutta** step over each timestep $\Delta t$:
+Rigid‑body mass-inertia matrix (no products of inertia, CG at origin):
+$$ \mathbf{M}-{\mathrm{RB}} = \mathrm{diag}(m,m,m, I_x, I_y, I_z). $$
 
-1. Compute $(\dot{\eta},\dot{\nu})$ at the current state $(\eta,\nu)$.
-2. Evaluate intermediate steps $(\eta + \frac{1}{2}k_1,\nu + \frac{1}{2}k_1)$, etc.
-3. Combine via RK4.
+## 2. Added Mass & Damping
 
-This yields updated states $\eta(t+\Delta t)$ and $\nu(t+\Delta t)$.
+### Added Mass
 
-## Summary
+Diagonal approximation:
+$$ \mathbf{M}_{\mathrm{A}} = \mathrm{diag}(X_{\dot u}, Y_{\dot v}, Z_{\dot w}, K_{\dot p}, M_{\dot q}, N_{\dot r}). $$
 
-1. **Mass & Inertia** of a rectangular prism:
-   $$
-   m = \rho L B T,
-   \quad
-   I_x = \frac{1}{12}m(B^2 + T^2),
-   \quad
-   I_y = \frac{1}{12}m(L^2 + T^2),
-   \quad
-   I_z = \frac{1}{12}m(L^2 + B^2).
-   $$
-   $$
-   \mathbf{M}_{\mathrm{RB}} = \mathrm{diag}(m,m,m,I_x,I_y,I_z).
-   $$
-   $$
-   \mathbf{M}_{\mathrm{A}} = \mathrm{diag}(X_{\dot{u}},Y_{\dot{v}},Z_{\dot{w}},K_{\dot{p}},M_{\dot{q}},N_{\dot{r}}).
-   $$
+Often parameterised by fractions of the corresponding rigid‑body terms (e.g. $X_{\dot u} = \alpha_u m$, $K_{\dot p}=\alpha_p I_x$, etc.).
 
-2. **Kinematics**:
-   $$
-   \dot{\eta} = \mathbf{J}(\eta)\nu,
-   $$
-   with $\eta=[x,y,z,\phi,\theta,\psi]$ in inertial frame, $\nu=[u,v,w,p,q,r]$ in body frame.
+Effective mass:
+$$ \mathbf{M}_{\mathrm{eff}} = \mathbf{M}_{\mathrm{RB}} + \mathbf{M}_{\mathrm{A}}. $$
 
-3. **Dynamics**:
-   $$
-   (\mathbf{M}_{\mathrm{RB}} + \mathbf{M}_{\mathrm{A}})\dot{\nu}
-     + \Bigl(\mathbf{C}_{\mathrm{RB}}(\nu)+\mathbf{C}_{\mathrm{A}}(\nu)\Bigr)\nu
-     + \mathbf{D}\nu
-   =
-   \tau + \tau_{\mathrm{ext}} + \mathbf{g}_{\mathrm{restoring}}(\eta).
-   $$
+### Linear Damping
 
-4. **Restoring** (small‐angle roll/pitch):
-   $$
-   \mathbf{g}_{\mathrm{restoring}}(\eta)
-   =
-   \begin{bmatrix}
-   0 ,
-   0 ,
-   0 ,
-   -mg\mathrm{GM}_{\phi}\phi ,
-   -mg\mathrm{GM}_{\theta}\theta ,
-   0
-   \end{bmatrix}.
-   $$
+Coefficients collected in a diagonal matrix (coefficients only):
+$$ \mathbf{D} = \mathrm{diag}(d_u, d_v, d_w, d_p, d_q, d_r). $$
+Applied force: $\mathbf{D}\nu = [d_u u,\ d_v v,\ d_w w,\ d_p p,\ d_q q,\ d_r r]^\top$ (sign convention embedded in $d_i$).
+
+## 3. Kinematics
+
+State vectors:
+$$
+\eta = [x, y, z, \phi, \theta, \psi]^\top, \qquad
+\nu = [u, v, w, p, q, r]^\top.
+$$
+
+Kinematic relation:
+$$ \dot{\eta} = \mathbf{J}(\eta)\nu. $$
+
+Block structure:
+$$
+\mathbf{J}(\eta)=\begin{bmatrix}
+R_{\mathrm{lin}}(\phi,\theta,\psi) & \mathbf{0} \\
+\mathbf{0} & T_{\mathrm{ang}}(\phi,\theta)
+\end{bmatrix},
+$$
+with standard Z-Y-X rotation composition $R_{\mathrm{lin}} = R_z(\psi)R_y(\theta)R_x(\phi)$ and Euler‑rate mapping $T_{\mathrm{ang}}$.
+
+## 4. Dynamics
+
+Full 6‑DOF equation (body frame):
+$$
+(\mathbf{M}_{\mathrm{RB}} + \mathbf{M}_{\mathrm{A}})\dot{\nu}
+  + (\mathbf{C}_{\mathrm{RB}}(\nu) + \mathbf{C}_{\mathrm{A}}(\nu))\nu
+  + \mathbf{D}\nu
+  = \tau + \tau_{\mathrm{ext}} + \mathbf{g}_{\mathrm{restoring}}(\eta).
+$$
+
+### Coriolis / Centripetal Terms
+
+Let $\mathbf{v} = [u,v,w]^\top$, $\omega = [p,q,r]^\top$, and $S(\cdot)$ the skew operator.
+
+Rigid‑body:
+$$
+\mathbf{C}_{\mathrm{RB}}(\nu) = \begin{bmatrix} \mathbf{0} & -m S(\omega) \\ -m S(\mathbf{v}) & - S(\mathbf{I}\omega) \end{bmatrix},\quad
+\mathbf{I}\omega = [I_x p, I_y q, I_z r].
+$$
+
+Added mass (partition $\mathbf{M}_{\mathrm{A}}$ into linear / rotational blocks):
+$$
+\mathbf{C}_{\mathrm{A}}(\nu) = \begin{bmatrix} \mathbf{0} & - S(\mathbf{M}_{\mathrm{A,lin}}\mathbf{v}) \\ - S(\mathbf{M}_{\mathrm{A,lin}}\mathbf{v}) & - S(\mathbf{M}_{\mathrm{A,rot}}\omega) \end{bmatrix}.
+$$
+
+### Damping Force Vector
+
+$$ \mathbf{D}\nu = [d_u u,\ d_v v,\ d_w w,\ d_p p,\ d_q q,\ d_r r]^\top. $$
+
+### Hydrostatics (Heave)
+
+Small displacement approximation:
+$$ F_z = - \rho g L B\, z. $$
+
+### Restoring (Roll / Pitch)
+
+Small‑angle moments:
+$$
+\mathbf{g}_{\mathrm{restoring}}(\eta) = \begin{bmatrix}
+0 \\ 0 \\ 0 \\ - m g\, \mathrm{GM}_{\phi} \, \phi \\ - m g \, \mathrm{GM}_{\theta} \, \theta \\ 0
+\end{bmatrix}.
+$$
+
+## 5. Time Integration
+
+System:
+$$
+\begin{aligned}
+\dot{\eta} &= \mathbf{J}(\eta)\nu,\\
+\mathbf{M}_{\mathrm{eff}} \dot{\nu} &+ (\mathbf{C}_{\mathrm{RB}} + \mathbf{C}_{\mathrm{A}})\nu + \mathbf{D}\nu = \tau + \tau_{\mathrm{ext}} + \mathbf{g}_{\mathrm{restoring}}(\eta).
+\end{aligned}
+$$
+
+Implemented with classical 4th‑order Runge-Kutta (RK4) over step $\Delta t$:
+
+1. Evaluate derivatives at current state.
+2. Two midpoint evaluations (using half steps).
+3. Final endpoint evaluation.
+4. Weighted combination to advance $(\eta,\nu)$.
+
+## 6. Quick Reference (Cheat Sheet)
+
+Mass & inertia:
+$$ m = \rho L B T, \quad I_x = \tfrac{1}{12} m (B^2 + T^2), \ I_y = \tfrac{1}{12} m (L^2 + T^2), \ I_z = \tfrac{1}{12} m (L^2 + B^2). $$
+$$ \mathbf{M}_{\mathrm{RB}} = \mathrm{diag}(m,m,m,I_x,I_y,I_z). $$
+Added mass: $\mathbf{M}_{\mathrm{A}}$ diagonal.  Effective mass: $\mathbf{M}_{\mathrm{eff}} = \mathbf{M}_{\mathrm{RB}} + \mathbf{M}_{\mathrm{A}}$.
+Kinematics: $\dot{\eta} = \mathbf{J}(\eta)\nu$.
+Dynamics: $(\mathbf{M}_{\mathrm{RB}} + \mathbf{M}_{\mathrm{A}})\dot{\nu} + (\mathbf{C}_{\mathrm{RB}}+\mathbf{C}_{\mathrm{A}})\nu + \mathbf{D}\nu = \tau + \tau_{\mathrm{ext}} + \mathbf{g}_{\mathrm{restoring}}(\eta)$.
+Restoring (small angles): $\mathbf{g}_{\mathrm{restoring}}(\eta)$ as above.
+
+---
+Feel free to extend with nonlinear damping or quaternion kinematics if needed.
