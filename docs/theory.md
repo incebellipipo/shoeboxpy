@@ -7,7 +7,7 @@ Symbols:
 | $L$ | Length | $m$ |
 | $B$ | Beam / width | $m$ |
 | $T$ | Height / depth | $m$ |
-| $\rho$ | Fluid density | $kg\,m^{-3}$ (1000 for water) |
+| $\rho$ | Fluid density | $kg\,m^3$ (1000 for water) |
 | $m$ | Mass | $kg$ |
 | $I_x,I_y,I_z$ | Principal inertias about body axes | $kg \, m^2$ |
 
