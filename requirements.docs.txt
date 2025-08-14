@@ -1,6 +1,6 @@
-sphinx
+sphinx>=7.2.0
 sphinx_rtd_theme
 readthedocs-sphinx-search
 docutils
 sphinx-hoverxref
-myst-parser==0.18.1
+myst-parser
