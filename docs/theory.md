@@ -135,12 +135,9 @@ Implemented with classical 4th‑order Runge-Kutta (RK4) over step $\Delta t$:
 ## 6. Quick Reference (Cheat Sheet)
 
 Mass & inertia:
-$$ m = \rho L B T, \quad I_x = \tfrac{1}{12} m (B^2 + T^2), \ I_y = \tfrac{1}{12} m (L^2 + T^2), \ I_z = \tfrac{1}{12} m (L^2 + B^2). $$
-$$ \mathbf{M}_{\mathrm{RB}} = \mathrm{diag}(m,m,m,I_x,I_y,I_z). $$
+$ m = \rho L B T, \quad I_x = \tfrac{1}{12} m (B^2 + T^2), \ I_y = \tfrac{1}{12} m (L^2 + T^2), \ I_z = \tfrac{1}{12} m (L^2 + B^2). $
+$ \mathbf{M}_{\mathrm{RB}} = \mathrm{diag}(m,m,m,I_x,I_y,I_z). $
 Added mass: $\mathbf{M}_{\mathrm{A}}$ diagonal.  Effective mass: $\mathbf{M}_{\mathrm{eff}} = \mathbf{M}_{\mathrm{RB}} + \mathbf{M}_{\mathrm{A}}$.
 Kinematics: $\dot{\eta} = \mathbf{J}(\eta)\nu$.
 Dynamics: $(\mathbf{M}_{\mathrm{RB}} + \mathbf{M}_{\mathrm{A}})\dot{\nu} + (\mathbf{C}_{\mathrm{RB}}+\mathbf{C}_{\mathrm{A}})\nu + \mathbf{D}\nu = \tau + \tau_{\mathrm{ext}} + \mathbf{g}_{\mathrm{restoring}}(\eta)$.
 Restoring (small angles): $\mathbf{g}_{\mathrm{restoring}}(\eta)$ as above.
-
----
-Feel free to extend with nonlinear damping or quaternion kinematics if needed.

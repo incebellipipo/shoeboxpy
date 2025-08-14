@@ -1,0 +1,43 @@
+/* Custom NTNU branding overrides */
+:root {
+  /* NTNU primary blue */
+  --ntnu-blue: rgb(0,80,158);
+}
+
+/* Read the Docs theme variable overrides */
+.wy-side-nav-search, .wy-nav-top {
+  background: var(--ntnu-blue);
+}
+
+.wy-menu-vertical a:focus, .wy-menu-vertical a:hover {
+  background-color: rgba(0,80,158,0.2);
+}
+
+.wy-menu-vertical li.current > a {
+  background: rgba(0,80,158,0.35);
+}
+
+.rst-content a, .rst-content a:visited {
+  color: var(--ntnu-blue);
+}
+
+.rst-content a:hover, .rst-content a:focus {
+  color: rgb(0,60,120);
+}
+
+/* Accent for code literals and headers */
+.rst-content code.literal {
+  color: var(--ntnu-blue);
+}
+
+/* Admonition titles */
+.rst-content .admonition .admonition-title {
+  background: var(--ntnu-blue);
+}
+
+/* Make sure logo scales nicely */
+.wy-side-nav-search .logo, .wy-side-nav-search img.logo, .wy-side-nav-search img {
+  max-width: 220px;
+  width: 100%;
+  height: auto;
+}
