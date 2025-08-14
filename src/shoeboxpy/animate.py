@@ -1,147 +1,233 @@
+"""Animation utilities.
+
+This module contains a (now optimized) routine for animating a vessel's
+6-DoF (or 3-DoF position only) history. The original implementation recreated
+matplotlib artists and performed Python list -> ndarray conversions every
+frame, which caused quadratic time growth and excessive CPU load for small
+``dt`` (high frame counts / high FPS).
+
+Main performance improvements:
+* Pre-allocate trace arrays instead of appending + copying each frame.
+* Keep a single ``Poly3DCollection`` instance and update its vertices in-place
+  (``set_verts``) instead of removing/adding each frame.
+* Optional frame decimation via ``max_fps`` so very small ``dt`` values do not
+  request more frames than a typical display can show.
+* Optional static axes (``follow=False``) to avoid per-frame axis limit updates.
+* Avoid ``scipy`` ``Rotation`` object construction per frame by using a tiny
+  local Euler->matrix implementation (keeps dependency optional at runtime).
+* Optional ``show`` flag so tests / scripts can build an animation without
+  blocking on GUI.
+
+Note: 3D blitting is still unreliable across backends, so ``blit=False``.
+"""
+
+from __future__ import annotations
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from scipy.spatial.transform import Rotation as R
+from typing import Tuple
+
+__all__ = ["animate_history"]
+
+
+def _euler_xyz_matrix(phi: float, theta: float, psi: float) -> np.ndarray:
+    """Return rotation matrix for XYZ (roll, pitch, yaw) intrinsic sequence.
+
+    Equivalent to Rz(psi) * Ry(theta) * Rx(phi) when using right-handed coords.
+    """
+    cphi, sphi = np.cos(phi), np.sin(phi)
+    ctheta, stheta = np.cos(theta), np.sin(theta)
+    cpsi, spsi = np.cos(psi), np.sin(psi)
+
+    # Rx
+    R_x = np.array([[1, 0, 0], [0, cphi, -sphi], [0, sphi, cphi]])
+    # Ry
+    R_y = np.array([[ctheta, 0, stheta], [0, 1, 0], [-stheta, 0, ctheta]])
+    # Rz
+    R_z = np.array([[cpsi, -spsi, 0], [spsi, cpsi, 0], [0, 0, 1]])
+    return R_z @ R_y @ R_x
 
 
 def animate_history(
-    pos_history: np.ndarray, dt: float, L: float = 1.0, B: float = 0.5, T: float = 0.3
-):
-    """
-    Animates the vessel motion from its position history with moving axis ticks.
+    pos_history: np.ndarray,
+    dt: float,
+    L: float = 1.0,
+    B: float = 0.5,
+    T: float = 0.3,
+    *,
+    follow: bool = True,
+    max_fps: float = 60.0,
+    show: bool = True,
+    static_margin_factor: float = 2.0,
+) -> animation.FuncAnimation:
+    """Animate a 3D vessel trajectory (position + optional Euler angles).
 
-    :param pos_history: np.ndarray
-        Array of states. Each row is assumed to be either:
-          - [x, y, z, phi, theta, psi] (6 elements), or
-          - [x, y, z] (3 elements) if no rotation is desired.
-    :param dt: float
-        Time step between frames in seconds.
-    :param L: float, optional
-        Length of the vessel (default 1.0 m).
-    :param B: float, optional
-        Width of the vessel (default 0.5 m).
-    :param T: float, optional
-        Height of the vessel (default 0.3 m).
-    """
-    n_frames = pos_history.shape[0]
+    Parameters
+    ----------
+    pos_history : (N,3) or (N,6) ndarray
+        Columns 0:3 are x,y,z. If 6 columns, 3:6 are Euler angles (phi,theta,psi).
+    dt : float
+        Simulation time step between successive ``pos_history`` rows (seconds).
+    L, B, T : float
+        Vessel dimensions (length, beam/width, height/thickness).
+    follow : bool, default True
+        If True, axes move to keep vessel centered. If False, a static bounding
+        box that encloses the whole trajectory is used (faster for large N).
+    max_fps : float, default 60
+        Cap the displayed frames per second. If 1/dt > max_fps frames are
+        requested, frames are decimated (skipping) to not exceed this.
+    show : bool, default True
+        Call ``plt.show()`` at the end. Set False for scripts/tests.
+    static_margin_factor : float, default 2.0
+        When ``follow=False`` the static axis cube extends this multiple of the
+        vessel length beyond the min/max trajectory extents.
 
-    # Set up the figure and 3D axis.
+    Returns
+    -------
+    matplotlib.animation.FuncAnimation
+        The created animation object (can be saved with ``anim.save``).
+    """
+
+    if pos_history.ndim != 2 or pos_history.shape[1] not in (3, 6):
+        raise ValueError("pos_history must have shape (N,3) or (N,6)")
+    if dt <= 0:
+        raise ValueError("dt must be positive")
+
+    n_total = pos_history.shape[0]
+
+    # Frame decimation factor if dt smaller than display refresh interval target.
+    desired_interval_ms = max(1000.0 / max_fps, 1.0)  # at least 1 ms
+    frame_interval_ms = dt * 1000.0
+    skip = int(np.ceil(desired_interval_ms / frame_interval_ms)) if frame_interval_ms < desired_interval_ms else 1
+    indices = np.arange(0, n_total, skip, dtype=int)
+    n_frames = len(indices)
+
+    # Split positions & angles (angles may be zeros if not provided).
+    pos = pos_history[:, :3]
+    if pos_history.shape[1] == 6:
+        angles = pos_history[:, 3:6]
+    else:
+        angles = np.zeros_like(pos)
+
+    # Precompute static axis limits if follow disabled.
+    margin_geom = L * static_margin_factor
+    if not follow:
+        mins = pos.min(axis=0) - margin_geom
+        maxs = pos.max(axis=0) + margin_geom
+
+    # Base vertices of vessel centered at origin.
+    base_vertices = np.array(
+        [
+            [-L / 2, -B / 2, -T / 2],
+            [L / 2, -B / 2, -T / 2],
+            [L / 2, B / 2, -T / 2],
+            [-L / 2, B / 2, -T / 2],
+            [-L / 2, -B / 2, T / 2],
+            [L / 2, -B / 2, T / 2],
+            [L / 2, B / 2, T / 2],
+            [-L / 2, B / 2, T / 2],
+        ],
+        dtype=float,
+    )
+    # Face index lists into the (8,3) vertex array.
+    face_indices = [
+        [0, 1, 2, 3],  # bottom
+        [4, 5, 6, 7],  # top
+        [0, 1, 5, 4],  # side
+        [2, 3, 7, 6],  # side
+        [1, 2, 6, 5],  # side
+        [4, 7, 3, 0],  # side
+    ]
+
+    # Pre-allocate trace arrays (avoid list append + copy each frame).
+    trace_x = np.empty(n_frames)
+    trace_y = np.empty(n_frames)
+    trace_z = np.empty(n_frames)
+
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    ax.set_zlabel("Z")
+    ax.set_title("Vessel animation")
 
-    # Initial axis limits (they will be updated each frame).
-    margin = L * 2
-    ax.set_xlim(-margin, margin)
-    ax.set_ylim(-margin, margin)
-    ax.set_zlim(-margin, margin)
+    if follow:
+        # Start with a reasonable cube around first position.
+        p0 = pos[0]
+        ax.set_xlim(p0[0] - margin_geom, p0[0] + margin_geom)
+        ax.set_ylim(p0[1] - margin_geom, p0[1] + margin_geom)
+        ax.set_zlim(p0[2] - margin_geom, p0[2] + margin_geom)
+    else:
+        ax.set_xlim(mins[0], maxs[0])
+        ax.set_ylim(mins[1], maxs[1])
+        ax.set_zlim(mins[2], maxs[2])
 
-    # Create an object for the trace.
-    (trace_line,) = ax.plot([], [], [], "b-", lw=2)
+    (trace_line,) = ax.plot([], [], [], "b-", lw=1.5)
 
-    # Use a mutable container to store the vessel Poly3DCollection.
-    vessel_poly_obj = [None]
+    # Create initial vessel poly (will update verts in-place each frame).
+    initial_faces = [[base_vertices[j] for j in face] for face in face_indices]
+    vessel_poly = Poly3DCollection(
+        initial_faces, facecolors="cyan", edgecolors="black", alpha=0.5
+    )
+    ax.add_collection3d(vessel_poly)
 
-    # This list will store the absolute positions for the trace.
-    trace_data = []
-
-    def init():
+    def init():  # noqa: D401
         trace_line.set_data([], [])
         trace_line.set_3d_properties([])
-        return (trace_line,)
+        return trace_line, vessel_poly
 
-    def animate(i):
-        nonlocal trace_data
+    def _frame(k: int) -> Tuple[object, object]:  # returns artists for FuncAnimation
+        i = indices[k]
+        p = pos[i]
+        a = angles[i]
 
-        # Extract the current state.
-        # If six columns are provided, use columns 0:3 for position and 3:6 for Euler angles.
-        if pos_history.shape[1] >= 6:
-            pos = pos_history[i, :3]
-            angles = pos_history[i, 3:6]
-        else:
-            pos = pos_history[i, :3]
-            angles = [0, 0, 0]
+        # Update trace slices.
+        trace_x[k] = p[0]
+        trace_y[k] = p[1]
+        trace_z[k] = p[2]
+        trace_line.set_data(trace_x[: k + 1], trace_y[: k + 1])
+        trace_line.set_3d_properties(trace_z[: k + 1])
 
-        # Append current absolute position to trace data.
-        trace_data.append(pos)
-        trace_data_np = np.array(trace_data)
+        # Axis follow (only if enabled).
+        if follow:
+            ax.set_xlim(p[0] - margin_geom, p[0] + margin_geom)
+            ax.set_ylim(p[1] - margin_geom, p[1] + margin_geom)
+            ax.set_zlim(p[2] - margin_geom, p[2] + margin_geom)
 
-        # Update the trace (in absolute coordinates).
-        trace_line.set_data(trace_data_np[:, 0], trace_data_np[:, 1])
-        trace_line.set_3d_properties(trace_data_np[:, 2])
-
-        # Update axis limits to keep the vessel at the center.
-        ax.set_xlim(pos[0] - margin, pos[0] + margin)
-        ax.set_ylim(pos[1] - margin, pos[1] + margin)
-        ax.set_zlim(pos[2] - margin, pos[2] + margin)
-
-        # Remove previous vessel drawing if it exists.
-        if vessel_poly_obj[0] is not None:
-            vessel_poly_obj[0].remove()
-
-        # Define the 8 vertices of the vessel's box (centered at the origin).
-        vertices = np.array(
-            [
-                [-L / 2, -B / 2, -T / 2],
-                [L / 2, -B / 2, -T / 2],
-                [L / 2, B / 2, -T / 2],
-                [-L / 2, B / 2, -T / 2],
-                [-L / 2, -B / 2, T / 2],
-                [L / 2, -B / 2, T / 2],
-                [L / 2, B / 2, T / 2],
-                [-L / 2, B / 2, T / 2],
-            ]
-        )
-
-        # Rotate the vertices according to the Euler angles.
-        r = R.from_euler("xyz", angles)
-        rotated_vertices = r.apply(vertices)
-        # Translate the vessel so that its center is at the absolute position.
-        translated_vertices = rotated_vertices + pos
-
-        # Define the 6 faces of the box using the translated vertices.
-        faces = [
-            [translated_vertices[j] for j in [0, 1, 2, 3]],  # bottom
-            [translated_vertices[j] for j in [4, 5, 6, 7]],  # top
-            [translated_vertices[j] for j in [0, 1, 5, 4]],  # side
-            [translated_vertices[j] for j in [2, 3, 7, 6]],  # side
-            [translated_vertices[j] for j in [1, 2, 6, 5]],  # side
-            [translated_vertices[j] for j in [4, 7, 3, 0]],  # side
-        ]
-
-        # Create a new Poly3DCollection for the vessel and add it to the axis.
-        vessel_poly = Poly3DCollection(
-            faces, facecolors="cyan", edgecolors="black", alpha=0.5
-        )
-        ax.add_collection3d(vessel_poly)
-
-        # Store the current vessel artist.
-        vessel_poly_obj[0] = vessel_poly
+        # Rotation matrix.
+        Rm = _euler_xyz_matrix(a[0], a[1], a[2])
+        rotated = base_vertices @ Rm.T + p  # (8,3)
+        # Build face list for set_verts.
+        faces = [[rotated[j] for j in face] for face in face_indices]
+        vessel_poly.set_verts(faces)
 
         return trace_line, vessel_poly
 
-    # Create the animation.
     anim = animation.FuncAnimation(
-        fig, animate, init_func=init, frames=n_frames, interval=dt * 1000, blit=False
+        fig,
+        _frame,
+        init_func=init,
+        frames=n_frames,
+        interval=max(frame_interval_ms * skip, desired_interval_ms),
+        blit=False,
+        repeat=False,
     )
 
-    plt.xlabel("X")
-    plt.ylabel("Y")
-    ax.set_zlabel("Z")
-    plt.title("3D Vessel Animation with Moving Axis Ticks")
-    plt.show()
+    if show:
+        plt.show()
+
+    return anim
 
 
-# Example usage:
-if __name__ == "__main__":
-    # Generate dummy history data: 200 frames of a circular path with rotation.
-    t = np.linspace(0, 2 * np.pi, 200)
-    x = 5 * np.cos(t)
-    y = 5 * np.sin(t)
-    z = 0.5 * np.sin(2 * t)
-    phi = 0.2 * np.sin(t)  # roll
-    theta = 0.2 * np.cos(t)  # pitch
-    psi = t  # yaw
-    history = np.column_stack([x, y, z, phi, theta, psi])
-
-    animate_history(history, dt=0.05, L=2.0, B=1.0, T=0.5)
+if __name__ == "__main__":  # pragma: no cover - manual use example
+    t = np.linspace(0, 20, 2000)
+    x = 5 * np.cos(0.3 * t)
+    y = 5 * np.sin(0.3 * t)
+    z = 0.5 * np.sin(0.6 * t)
+    phi = 0.2 * np.sin(0.5 * t)
+    theta = 0.2 * np.cos(0.4 * t)
+    psi = 0.5 * t
+    hist = np.column_stack([x, y, z, phi, theta, psi])
+    animate_history(hist, dt=t[1] - t[0], L=2.0, B=1.0, T=0.5)

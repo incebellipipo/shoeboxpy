@@ -77,6 +77,18 @@ class Shoebox:
         # Store states
         self.eta = eta0.astype(float)  # [x, y, psi]
         self.nu = nu0.astype(float)  # [u, v, r]
+        # Initialize reusable buffers
+        self._init_buffers()
+
+    def _init_buffers(self) -> None:
+        """Allocate reusable numpy arrays to reduce per-step allocations."""
+        self._k_eta = np.zeros((4, 3), dtype=float)
+        self._k_nu = np.zeros((4, 3), dtype=float)
+        self._eta_tmp = np.zeros(3, dtype=float)
+        self._nu_tmp = np.zeros(3, dtype=float)
+        self._eta_dot_buf = np.zeros(3, dtype=float)
+        self._nu_dot_buf = np.zeros(3, dtype=float)
+        self._zeros3 = np.zeros(3, dtype=float)
 
     def J(self, eta: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         """
@@ -125,25 +137,64 @@ class Shoebox:
 
         External forces :math:`\tau_{ext}` can be provided (default is zero).
         """
-        if tau_ext is None:
-            tau_ext = np.zeros(3)
-
-        # Kinematics
-        eta_dot = self.J(eta) @ nu
-
-        # Coriolis/centripetal effects
-        C_total = self.C_RB(nu) + self.C_A(nu)
-
-        # For a planar vessel, there are no hydrostatic restoring forces (set to zero)
-        g_rest = np.zeros(3)
-
-        # Compute right-hand side (forces minus damping and Coriolis effects)
-        rhs = tau + tau_ext + g_rest - self.D @ nu - C_total @ nu
-
-        # Solve for acceleration in body frame
-        nu_dot = self.invM_eff @ rhs
-
+        # Public method keeps original semantics (returns new arrays) while
+        # delegating core math to in-place implementation to reduce internal allocations.
+        eta_dot = np.empty(3, dtype=float)
+        nu_dot = np.empty(3, dtype=float)
+        self._dynamics_into(eta, nu, tau, tau_ext, eta_dot, nu_dot)
         return eta_dot, nu_dot
+
+    # ------------------------------------------------------------------
+    # Internal optimized dynamics: writes results into provided buffers.
+    # Avoids constructing intermediate small arrays (J, C matrices, rhs).
+    # ------------------------------------------------------------------
+    def _dynamics_into(
+        self,
+        eta: npt.NDArray[np.float64],
+        nu: npt.NDArray[np.float64],
+        tau: npt.NDArray[np.float64],
+        tau_ext: npt.NDArray[np.float64],
+        eta_dot_out: npt.NDArray[np.float64],
+        nu_dot_out: npt.NDArray[np.float64],
+    ) -> None:
+        if tau_ext is None:
+            tau_ext = self._zeros3
+
+        # Unpack states
+        psi = eta[2]
+        u, v, r = nu
+
+        c = np.cos(psi)
+        s = np.sin(psi)
+
+        # eta_dot = J(psi) * nu (manual expand to avoid matrix mult allocation)
+        eta_dot_out[0] = c * u - s * v
+        eta_dot_out[1] = s * u + c * v
+        eta_dot_out[2] = r
+
+        # Coriolis * nu contributions (pre- multiplied form) for rigid-body & added mass
+        m = self.m
+        Xu_dot = self.MA[0, 0]
+        Yv_dot = self.MA[1, 1]
+        # C_total @ nu only has first two components non-zero
+        cnu0 = -(m + Yv_dot) * v * r
+        cnu1 = (m + Xu_dot) * u * r
+
+        # Damping (diagonal) * nu
+        Dnu0 = self.D[0, 0] * u
+        Dnu1 = self.D[1, 1] * v
+        Dnu2 = self.D[2, 2] * r
+
+        # rhs = tau + tau_ext - Dnu - Cnu  (no restoring forces in this planar model)
+        rhs0 = tau[0] + tau_ext[0] - Dnu0 - cnu0
+        rhs1 = tau[1] + tau_ext[1] - Dnu1 - cnu1
+        rhs2 = tau[2] + tau_ext[2] - Dnu2  # cnu2 == 0
+
+        # nu_dot = invM_eff @ rhs (manual 3x3 matvec multiply)
+        M = self.invM_eff
+        nu_dot_out[0] = M[0, 0] * rhs0 + M[0, 1] * rhs1 + M[0, 2] * rhs2
+        nu_dot_out[1] = M[1, 0] * rhs0 + M[1, 1] * rhs1 + M[1, 2] * rhs2
+        nu_dot_out[2] = M[2, 0] * rhs0 + M[2, 1] * rhs1 + M[2, 2] * rhs2
 
     def step(
         self,
@@ -155,34 +206,39 @@ class Shoebox:
         Advance the state :math:`(\eta, \nu)` one time step dt using 4th-order Runge-Kutta.
         """
         if tau is None:
-            tau = np.zeros(3)
+            tau = self._zeros3.copy()  # ensure user can mutate after call
         if tau_ext is None:
-            tau_ext = np.zeros(3)
+            tau_ext = self._zeros3  # safe shared read-only
 
-        eta0 = self.eta
+        eta0 = self.eta  # references (updated at end)
         nu0 = self.nu
 
+        k_eta = self._k_eta
+        k_nu = self._k_nu
+        eta_tmp = self._eta_tmp
+        nu_tmp = self._nu_tmp
+
         # -- k1 --
-        k1_eta, k1_nu = self.dynamics(eta0, nu0, tau, tau_ext)
+        self._dynamics_into(eta0, nu0, tau, tau_ext, k_eta[0], k_nu[0])
 
         # -- k2 --
-        eta_temp = eta0 + 0.5 * dt * k1_eta
-        nu_temp = nu0 + 0.5 * dt * k1_nu
-        k2_eta, k2_nu = self.dynamics(eta_temp, nu_temp, tau, tau_ext)
+        eta_tmp[:] = eta0 + 0.5 * dt * k_eta[0]
+        nu_tmp[:] = nu0 + 0.5 * dt * k_nu[0]
+        self._dynamics_into(eta_tmp, nu_tmp, tau, tau_ext, k_eta[1], k_nu[1])
 
         # -- k3 --
-        eta_temp = eta0 + 0.5 * dt * k2_eta
-        nu_temp = nu0 + 0.5 * dt * k2_nu
-        k3_eta, k3_nu = self.dynamics(eta_temp, nu_temp, tau, tau_ext)
+        eta_tmp[:] = eta0 + 0.5 * dt * k_eta[1]
+        nu_tmp[:] = nu0 + 0.5 * dt * k_nu[1]
+        self._dynamics_into(eta_tmp, nu_tmp, tau, tau_ext, k_eta[2], k_nu[2])
 
         # -- k4 --
-        eta_temp = eta0 + dt * k3_eta
-        nu_temp = nu0 + dt * k3_nu
-        k4_eta, k4_nu = self.dynamics(eta_temp, nu_temp, tau, tau_ext)
+        eta_tmp[:] = eta0 + dt * k_eta[2]
+        nu_tmp[:] = nu0 + dt * k_nu[2]
+        self._dynamics_into(eta_tmp, nu_tmp, tau, tau_ext, k_eta[3], k_nu[3])
 
-        # Combine increments
-        self.eta = eta0 + (dt / 6.0) * (k1_eta + 2 * k2_eta + 2 * k3_eta + k4_eta)
-        self.nu = nu0 + (dt / 6.0) * (k1_nu + 2 * k2_nu + 2 * k3_nu + k4_nu)
+        # Combine increments (in-place update to existing state arrays)
+        eta0 += (dt / 6.0) * (k_eta[0] + 2 * k_eta[1] + 2 * k_eta[2] + k_eta[3])
+        nu0 += (dt / 6.0) * (k_nu[0] + 2 * k_nu[1] + 2 * k_nu[2] + k_nu[3])
 
     def get_states(self) -> tp.Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
         r"""
