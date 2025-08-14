@@ -45,6 +45,7 @@ extensions = [
     "sphinx.ext.todo",
     "sphinx.ext.intersphinx",
     "myst_parser",
+    "sphinx.ext.githubpages",
 ]
 
 autosummary_generate = True
