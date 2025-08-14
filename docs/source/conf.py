@@ -86,6 +86,15 @@ source_suffix = {
 #
 html_theme = "sphinx_rtd_theme"
 
+# Project branding
+# Path to logo relative to this configuration directory
+html_logo = "../assets/shoebox.webp"
+
+# Add custom CSS for NTNU color palette overrides
+html_css_files = [
+    "css/custom.css",
+]
+
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
