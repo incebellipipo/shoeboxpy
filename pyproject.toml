@@ -43,11 +43,11 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.dynamic]
-version = {attr = "shoeboxpy.__version__"}
 dependencies = { file = ["requirements.txt"] }
 
 [tool.setuptools.package-data]
 
 [tool.setuptools_scm]
-version_file = "src/shoeboxpy/__version__.py"
+# Basic setuptools-scm config: derive version from git tags.
+# No write_to/version_file needed; importlib.metadata reads dist metadata.
 version_scheme = 'post-release'
