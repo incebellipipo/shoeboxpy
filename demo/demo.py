@@ -28,39 +28,11 @@ for i, t in enumerate(T):
     velocity_history[i] = velocity  # Store the current velocities
 
 # Plot final on a matplotlib figure. left side of the plot shows the position, right side shows the velocity.
-# Plot final on a matplotlib figure. left side of the plot shows the position, right side shows the velocity, and bottom shows the XY plot.
-plt.figure(figsize=(18, 6))
-plt.subplot(1, 3, 1)
+
+plt.figure(figsize=(12, 6))
+plt.subplot(1, 2, 1)
 plt.plot(T, pose_history[:, 0], label='x (m)')
 plt.plot(T, pose_history[:, 1], label='y (m)')
-plt.plot(T, pose_history[:, 2], label='z (m)')
-plt.title('Position over Time')
-plt.xlabel('Time (s)')
-plt.ylabel('Position (m)')
-plt.grid()
-plt.legend()
-plt.subplot(1, 3, 2)
-
-plt.plot(T, velocity_history[:, 0], label='u (m/s)')
-plt.plot(T, velocity_history[:, 1], label='v (m/s)')
-plt.plot(T, velocity_history[:, 2], label='w (m/s)')
-plt.title('Velocity over Time')
-plt.xlabel('Time (s)')
-plt.ylabel('Velocity (m/s)')
-plt.grid()
-plt.legend()
-
-plt.subplot(1, 3, 3)
-plt.plot(pose_history[:, 0], pose_history[:, 1])
-plt.title('X-Y Plot')
-plt.xlabel('X (m)')
-plt.ylabel('Y (m)')
-plt.axis('equal')
-plt.grid()
-
-plt.tight_layout()
-plt.show()
-
 
 
 
