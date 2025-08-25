@@ -1,28 +1,4 @@
-"""Animation utilities.
-
-This module contains a (now optimized) routine for animating a vessel's
-6-DoF (or 3-DoF position only) history. The original implementation recreated
-matplotlib artists and performed Python list -> ndarray conversions every
-frame, which caused quadratic time growth and excessive CPU load for small
-``dt`` (high frame counts / high FPS).
-
-Main performance improvements:
-* Pre-allocate trace arrays instead of appending + copying each frame.
-* Keep a single ``Poly3DCollection`` instance and update its vertices in-place
-  (``set_verts``) instead of removing/adding each frame.
-* Optional frame decimation via ``max_fps`` so very small ``dt`` values do not
-  request more frames than a typical display can show.
-* Optional static axes (``follow=False``) to avoid per-frame axis limit updates.
-* Avoid ``scipy`` ``Rotation`` object construction per frame by using a tiny
-  local Euler->matrix implementation (keeps dependency optional at runtime).
-* Optional ``show`` flag so tests / scripts can build an animation without
-  blocking on GUI.
-
-Note: 3D blitting is still unreliable across backends, so ``blit=False``.
-"""
-
 from __future__ import annotations
-
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
@@ -31,8 +7,6 @@ from typing import Tuple
 
 __all__ = [
     "animate_history",
-    "animate_history_3dof",
-    "animate_history_6dof",
 ]
 
 

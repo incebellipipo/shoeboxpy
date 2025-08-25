@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 import typing as tp
@@ -6,6 +7,7 @@ import shoeboxpy.utils as utils
 from shoeboxpy.utils import skew
 import shoeboxpy.animate
 
+__all__ = ["Shoebox"]
 
 class Shoebox:
     r"""

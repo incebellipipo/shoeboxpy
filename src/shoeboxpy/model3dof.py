@@ -1,7 +1,9 @@
+from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 import typing as tp
 
+__all__ = ["Shoebox"]
 
 class Shoebox:
     r"""
