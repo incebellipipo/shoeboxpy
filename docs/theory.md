@@ -152,7 +152,7 @@ $$
 $$
 
 $$
-\mathbf{M}_{\mathrm{eff}} \dot{\nu} &+ (\mathbf{C}_{\mathrm{RB}} + \mathbf{C}_{\mathrm{A}})\nu + \mathbf{D}\nu = \tau + \tau_{\mathrm{ext}} + \mathbf{g}_{\mathrm{restoring}}(\eta).
+\mathbf{M}_{\mathrm{eff}} \dot{\nu} + (\mathbf{C}_{\mathrm{RB}} + \mathbf{C}_{\mathrm{A}})\nu + \mathbf{D}\nu = \tau + \tau_{\mathrm{ext}} + \mathbf{g}_{\mathrm{restoring}}(\eta).
 $$
 
 Implemented with classical 4th‑order Runge-Kutta (RK4) over step $\Delta t$:

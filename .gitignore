@@ -198,6 +198,8 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# (No longer generating a version file with setuptools-scm; version comes from metadata)
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.

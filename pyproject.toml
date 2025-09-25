@@ -9,20 +9,32 @@ authors = [
 ]
 description = "A shoebox approximation for a marine hydrodynamics model"
 readme = "README.md"
-requires-python = ">=3.8"
-dynamic = ["version"]
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+dynamic = ["version", "dependencies"]
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Operating System :: OS Independent"
 ]
 
-dependencies = [
-    "numpy",
-    "pandas",
-    "scipy",
-    "matplotlib"
-]
+keywords = ["hydrodynamics", "marine", "simulation", "dynamics", "vessel"]
 
-keywords = []
+[project.urls]
+Homepage = "https://github.com/incebellipipo/shoeboxpy"
+Repository = "https://github.com/incebellipipo/shoeboxpy.git"
+Documentation = "https://incebellipipo.github.io/shoeboxpy/"
+Issues = "https://github.com/incebellipipo/shoeboxpy/issues"
+Source = "https://github.com/incebellipipo/shoeboxpy"
 
 [tool.setuptools]
 include-package-data = true
@@ -31,10 +43,11 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.dynamic]
-version = {attr = "shoeboxpy.__version__"}
+dependencies = { file = ["requirements.txt"] }
 
 [tool.setuptools.package-data]
 
 [tool.setuptools_scm]
-version_file = "src/shoeboxpy/__version__.py"
+# Basic setuptools-scm config: derive version from git tags.
+# No write_to/version_file needed; importlib.metadata reads dist metadata.
 version_scheme = 'post-release'

@@ -1,7 +1,9 @@
+from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 import typing as tp
 
+__all__ = ["Shoebox"]
 
 class Shoebox:
     r"""
@@ -245,3 +247,26 @@ class Shoebox:
         Returns a copy of the current states: :math:`\eta, \nu`
         """
         return self.eta.copy(), self.nu.copy()
+
+if __name__ == "__main__":
+    import shoeboxpy.animate
+    # Example usage
+    dt = 0.01
+    T_total = 300.0
+    shoebox = Shoebox(
+        L=1.0,
+        B=0.3,
+        T=0.03,
+        eta0=np.array([0.0, 0.0, 0.0]),
+        nu0=np.zeros(3)
+    )
+
+    eta_history = []
+
+    # Simulate for 10 seconds with no control input
+    for t in range(int(T_total / dt)):
+        shoebox.step(tau=np.array([1.0, 0.2, 0.1]), dt=dt)
+        eta_history.append(shoebox.eta.copy())
+
+    eta_history = np.array(eta_history)
+    shoeboxpy.animate.animate_history(eta_history, dt=dt, L=1.0, B=0.3, T=0.2)
