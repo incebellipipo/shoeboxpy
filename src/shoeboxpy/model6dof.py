@@ -399,7 +399,39 @@ class Shoebox:
             nu_dot_out[i] = invM[i,0]*rhs[0] + invM[i,1]*rhs[1] + invM[i,2]*rhs[2] + \
                              invM[i,3]*rhs[3] + invM[i,4]*rhs[4] + invM[i,5]*rhs[5]
 
-    def step(self, tau=None, tau_ext=None, dt=0.01):
+
+    def step(self, tau: npt.NDArray[np.float64] = None, tau_ext: npt.NDArray[np.float64] = None, dt: float = 0.01) -> None:
+        r"""
+        Advance the state by time step `dt` using 4th-order Runge-Kutta.
+
+        checks if tau is 3-DOF or 6-DOF and calls the appropriate step function.
+
+        :param tau: Control forces/moments :math:`[X, Y, Z, K, M, N]`
+        :param tau_ext: External forces/moments :math:`[X, Y, Z, K, M, N]`
+        :param dt: Time step (s)
+        """
+        if tau is not None and len(tau) == 3:
+            self._step_3dof(tau=tau, tau_ext=tau_ext, dt=dt)
+        else:
+            self._step_6dof(tau=tau, tau_ext=tau_ext, dt=dt)
+
+    def _step_3dof(self, tau=None, tau_ext=None, dt=0.01):
+        r"""
+        When called, expands 3-DOF inputs to 6-DOF and calls _step_6dof.
+        """
+        if tau is not None and len(tau) == 3:
+            tau_6dof = np.array([tau[0], tau[1], 0.0, 0.0, 0.0, tau[2]])
+        else:
+            tau_6dof = None
+
+        if tau_ext is not None and len(tau_ext) == 3:
+            tau_ext_6dof = np.array([tau_ext[0], tau_ext[1], 0.0, 0.0, 0.0, tau_ext[2]])
+        else:
+            tau_ext_6dof = None
+
+        self._step_6dof(tau=tau_6dof, tau_ext=tau_ext_6dof, dt=dt)
+
+    def _step_6dof(self, tau=None, tau_ext=None, dt=0.01):
         r"""Advance (eta, nu) one step using RK4 with preallocated buffers."""
         if tau is None:
             tau = self._zeros6.copy()
@@ -431,9 +463,15 @@ class Shoebox:
         eta0 += (dt / 6.0) * (k_eta[0] + 2*k_eta[1] + 2*k_eta[2] + k_eta[3])
         nu0 += (dt / 6.0) * (k_nu[0] + 2*k_nu[1] + 2*k_nu[2] + k_nu[3])
 
-    def get_states(self):
-        return self.eta.copy(), self.nu.copy()
-
+    def get_states(self, dof3: bool = False) -> tp.Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+        r"""
+        Returns a copy of the current states: :math:`\eta, \nu`
+        If dof3 is True, returns only the 3-DOF states: :math:`[x, y, \psi], [u, v, r]`
+        """
+        if dof3:
+            return self.eta[[0, 1, 5]].copy(), self.nu[[0, 1, 5]].copy()
+        else:
+            return self.eta.copy(), self.nu.copy()
 
 if __name__ == "__main__":
     # Example usage
