@@ -33,7 +33,14 @@ plt.figure(figsize=(12, 6))
 plt.subplot(1, 2, 1)
 plt.plot(T, pose_history[:, 0], label='x (m)')
 plt.plot(T, pose_history[:, 1], label='y (m)')
+plt.legend(); plt.title('Position')
+plt.xlabel('Time (s)')
 
-
+plt.subplot(1, 2, 2)
+plt.plot(T, velocity_history[:, 0], label='u (m/s)')
+plt.plot(T, velocity_history[:, 1], label='v (m/s)')
+plt.plot(T, velocity_history[:, 5], label='r (rad/s)')
+plt.legend(); plt.title('Velocities')
+plt.xlabel('Time (s)')
 
 animate_history(pose_history, dt=dt, L=1.0, B=0.3, T=0.2)  # Animate the results
