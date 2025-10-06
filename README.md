@@ -1,8 +1,9 @@
+[![DOI](https://zenodo.org/badge/959946842.svg)](https://doi.org/10.5281/zenodo.17277252)
+
 # shoeboxpy
 
-
 <div align="center">
-    <img src="./docs/assets/shoebox.webp" alt="shoeboxpy" width="400"/>
+    <img src="https://github.com/incebellipipo/shoeboxpy/blob/master/docs/assets/shoebox.webp" alt="shoeboxpy" width="400"/>
 </div>
 
 ## Installation
@@ -16,19 +17,25 @@ pip install git+https://github.com/incebellipipo/shoeboxpy.git
 The `shoeboxpy` package provides simulation models for vessels with 3 and 6 degrees of freedom (DOF). These models are based on rigid-body dynamics, including added mass, damping, Coriolis/centripetal effects, and restoring forces.
 
 ### 6-DOF Model
+
 The 6-DOF model represents a rectangular "shoebox" vessel with the following states:
+
 - Position and orientation in the inertial frame:
   $\eta = [x, y, z, \phi, \theta, \psi]$
 - Velocities in the body frame:
   $\nu = [u, v, w, p, q, r]$
+
 ### 3-DOF Model
+
 The 3-DOF model simplifies the dynamics to planar motion (surge, sway, yaw) with states:
+
 - Position and orientation in the inertial frame:
   $\eta = [x, y, \psi]$
 - Velocities in the body frame:
   $\nu = [u, v, r]$
 
 ### Dynamics
+
 Dynamics for both models are governed by:
 
 $$
@@ -39,6 +46,7 @@ $$
 $$
 
 where:
+
 - $M_{RB}$ and $M_A$ are the rigid-body and added mass matrices.
 - $C_{RB}(\nu)$ and $C_A(\nu)$ are the Coriolis/centripetal matrices.
 - $D$ is the linear damping matrix.
@@ -81,4 +89,3 @@ eta_history = np.array(eta_history)
 
 animate_history(eta_history, dt=dt, L=1.0, B=0.3, T=0.2)  # Animate the results
 ```
-

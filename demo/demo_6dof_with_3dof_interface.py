@@ -23,8 +23,8 @@ velocity_history = np.zeros((len(T), 3))  # [u, v, r]
 # Simulate for 10 seconds with a time step of 0.01 seconds
 for i, t in enumerate(T):
     # Apply control forces in surge, sway and yaw
-    shoebox.step(tau=np.array([2.0, 0.5, 0.1]), dt=dt)
-    position, velocity = shoebox.get_states(dof3=True)
+    shoebox.to3dof.step(tau=np.array([2.0, 0.5, 0.1]), dt=dt)
+    position, velocity = shoebox.to3dof.get_states()
     pose_history[i] = position  # Store the current state
     velocity_history[i] = velocity  # Store the current velocities
 
