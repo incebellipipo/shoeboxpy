@@ -473,6 +473,194 @@ class Shoebox:
         else:
             return self.eta.copy(), self.nu.copy()
 
+    class _Shoebox3DOFAdapter:
+        r"""Thin adapter exposing a 3-DOF view of the 6-DOF Shoebox.
+
+        The adapter projects/expands vectors and matrices between the
+        3-DOF ordering [x, y, psi], [u, v, r] and the 6-DOF ordering
+        [x, y, z, phi, theta, psi], [u, v, w, p, q, r].
+        """
+
+        _idx = [0, 1, 5]
+
+        def __init__(self, parent: "Shoebox"):
+            self._p = parent
+
+        # --- state properties -------------------------------------------------
+        @property
+        def eta(self) -> npt.NDArray[np.float64]:
+            return self._p.eta[self._idx].copy()
+
+        @eta.setter
+        def eta(self, val: npt.NDArray[np.float64]) -> None:
+            arr = np.asarray(val, dtype=float)
+            if arr.shape != (3,):
+                raise ValueError("eta must be length-3 array [x, y, psi]")
+            self._p.eta[self._idx] = arr
+
+        @property
+        def nu(self) -> npt.NDArray[np.float64]:
+            return self._p.nu[self._idx].copy()
+
+        @nu.setter
+        def nu(self, val: npt.NDArray[np.float64]) -> None:
+            arr = np.asarray(val, dtype=float)
+            if arr.shape != (3,):
+                raise ValueError("nu must be length-3 array [u, v, r]")
+            self._p.nu[self._idx] = arr
+
+        # --- matrix views -----------------------------------------------------
+        def _submat(self, M: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+            return M[np.ix_(self._idx, self._idx)].copy()
+
+        @property
+        def MRB(self) -> npt.NDArray[np.float64]:
+            return self._submat(self._p.MRB)
+
+        @property
+        def MA(self) -> npt.NDArray[np.float64]:
+            return self._submat(self._p.MA)
+
+        @property
+        def M_eff(self) -> npt.NDArray[np.float64]:
+            return self._submat(self._p.M_eff)
+
+        @property
+        def D(self) -> npt.NDArray[np.float64]:
+            return self._submat(self._p.D)
+
+        @property
+        def invM_eff(self) -> npt.NDArray[np.float64]:
+            return self._submat(self._p.invM_eff)
+
+        # --- kinematic and coriolis helpers ----------------------------------
+        def J(self, eta3: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+            r"""Compute the 3x3 transformation matrix J for 3-DOF eta.
+
+            The 3-DOF eta is expanded to a 6-DOF state and the parent's
+            `J` is called; the 3x3 sub-block for indices [0,1,5] is returned.
+
+            :param eta3: 3-element array [x, y, psi]
+            :return: 3x3 numpy array mapping [u, v, r] to [dot x, dot y, dot psi]
+            """
+            eta6 = np.zeros(6, dtype=float)
+            eta6[self._idx] = np.asarray(eta3, dtype=float)
+            J6 = self._p.J(eta6)
+            return J6[np.ix_(self._idx, self._idx)].copy()
+
+        def C_RB(self, nu3: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+            r"""Rigid-body Coriolis/centripetal matrix for 3-DOF velocities.
+
+            The 3-DOF velocity vector is expanded to 6 elements, the parent's
+            `C_RB` is computed and the corresponding 3x3 sub-block is returned.
+
+            :param nu3: 3-element body velocity [u, v, r]
+            :return: 3x3 Coriolis matrix for the 3-DOF subspace
+            """
+            nu6 = np.zeros(6, dtype=float)
+            nu6[self._idx] = np.asarray(nu3, dtype=float)
+            C6 = self._p.C_RB(nu6)
+            return C6[np.ix_(self._idx, self._idx)].copy()
+
+        def C_A(self, nu3: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+            r"""Added-mass Coriolis/centripetal matrix for 3-DOF velocities.
+
+            Expands the 3-DOF velocity to 6-DOF, calls the parent's `C_A` and
+            returns the 3x3 sub-block corresponding to indices [0,1,5].
+
+            :param nu3: 3-element body velocity [u, v, r]
+            :return: 3x3 added-mass Coriolis matrix for the 3-DOF subspace
+            """
+            nu6 = np.zeros(6, dtype=float)
+            nu6[self._idx] = np.asarray(nu3, dtype=float)
+            C6 = self._p.C_A(nu6)
+            return C6[np.ix_(self._idx, self._idx)].copy()
+
+        # --- dynamics / stepping ---------------------------------------------
+        def dynamics(
+            self,
+            eta3: npt.NDArray[np.float64],
+            nu3: npt.NDArray[np.float64],
+            tau3: npt.NDArray[np.float64],
+            tau_ext3: tp.Optional[npt.NDArray[np.float64]] = None,
+        ) -> tp.Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+            r"""Compute time derivatives for the 3-DOF state.
+
+            Expands the 3-DOF inputs to 6-DOF, calls the parent's `dynamics`
+            and returns the projected 3-DOF derivatives.
+
+            :param eta3: 3-element pose [x, y, psi]
+            :param nu3: 3-element body velocity [u, v, r]
+            :param tau3: 3-element control forces [X, Y, N]
+            :param tau_ext3: optional 3-element external forces [X, Y, N]
+            :return: (eta_dot3, nu_dot3) 3-element derivatives
+            """
+            eta6 = np.zeros(6, dtype=float)
+            nu6 = np.zeros(6, dtype=float)
+            eta6[self._idx] = np.asarray(eta3, dtype=float)
+            nu6[self._idx] = np.asarray(nu3, dtype=float)
+
+            if tau3 is not None:
+                tau6 = np.zeros(6, dtype=float)
+                tau6[self._idx] = np.asarray(tau3, dtype=float)
+            else:
+                tau6 = None
+
+            if tau_ext3 is not None:
+                tau_ext6 = np.zeros(6, dtype=float)
+                tau_ext6[self._idx] = np.asarray(tau_ext3, dtype=float)
+            else:
+                tau_ext6 = None
+
+            eta_dot6, nu_dot6 = self._p.dynamics(eta6, nu6, tau6, tau_ext6)
+            return eta_dot6[self._idx].copy(), nu_dot6[self._idx].copy()
+
+        def step(self, tau: npt.NDArray[np.float64] = None, tau_ext: npt.NDArray[np.float64] = None, dt: float = 0.01) -> None:
+            r"""Advance the parent model one timestep using 3-DOF inputs.
+
+            `tau` and `tau_ext`, if provided, must be length-3 arrays
+            ([X, Y, N]) and will be expanded to the 6-DOF format before
+            delegating to the parent `step` implementation.
+
+            :param tau: optional 3-element control forces [X, Y, N]
+            :param tau_ext: optional 3-element external forces [X, Y, N]
+            :param dt: timestep in seconds
+            :return: None (updates parent state in-place)
+            """
+            if tau is not None:
+                tau_arr = np.asarray(tau, dtype=float)
+                if tau_arr.shape == (3,):
+                    self._p.step(tau=tau_arr, tau_ext=tau_ext, dt=dt)
+                    return
+                else:
+                    raise ValueError("tau must be length-3 array [X, Y, N] for 3-DOF adapter")
+
+            # tau is None -> delegate (parent handles None)
+            self._p.step(tau=None, tau_ext=tau_ext, dt=dt)
+
+        def get_states(self) -> tp.Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+            r"""Return copies of the current 3-DOF states.
+
+            :return: (eta3, nu3) where eta3=[x,y,psi] and nu3=[u,v,r]
+            """
+            return self._p.get_states(dof3=True)
+
+    @property
+    def to3dof(self) -> _Shoebox3DOFAdapter:
+        r"""Lazily create and return a 3-DOF adapter for this Shoebox.
+
+        The returned adapter exposes a small 3-DOF-compatible API that maps
+        through to the underlying 6-DOF implementation.
+
+        :return: an adapter object exposing a 3-DOF API (eta, nu, step, dynamics, matrices)
+        """
+        if not hasattr(self, "_to3dof") or self._to3dof is None:
+            self._to3dof = Shoebox._Shoebox3DOFAdapter(self)
+        return self._to3dof
+
+
+
+
 if __name__ == "__main__":
     # Example usage
     dt = 0.01

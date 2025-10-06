@@ -67,6 +67,52 @@ class TestShoeboxModel6DOF(unittest.TestCase):
         self.assertFalse(np.isclose(new_eta[4], initial_eta[4]))
         self.assertFalse(np.allclose(new_nu, initial_nu))
 
+    def test_to3dof_state_projection_and_setters(self):
+        """Verify that to3dof.get_states() matches get_states(dof3=True)
+        and that setting eta/nu through the adapter updates the parent."""
+        shoebox = Shoebox(L=self.L, B=self.B, T=self.T)
+        eta3_a, nu3_a = shoebox.get_states(dof3=True)
+        eta3_b, nu3_b = shoebox.to3dof.get_states()
+        np.testing.assert_allclose(eta3_a, eta3_b)
+        np.testing.assert_allclose(nu3_a, nu3_b)
+
+        # Set via adapter and verify parent updated
+        shoebox.to3dof.eta = np.array([1.0, 2.0, 0.5])
+        shoebox.to3dof.nu = np.array([0.1, -0.2, 0.05])
+        eta_parent, nu_parent = shoebox.get_states()
+        np.testing.assert_allclose(eta_parent[[0, 1, 5]], np.array([1.0, 2.0, 0.5]))
+        np.testing.assert_allclose(nu_parent[[0, 1, 5]], np.array([0.1, -0.2, 0.05]))
+
+    def test_to3dof_matrix_subblocks(self):
+        """Verify the 3x3 matrices from the adapter equal the corresponding
+        subblocks from the 6x6 matrices."""
+        shoebox = Shoebox(L=self.L, B=self.B, T=self.T)
+        idx = [0, 1, 5]
+        np.testing.assert_allclose(shoebox.to3dof.MRB, shoebox.MRB[np.ix_(idx, idx)])
+        np.testing.assert_allclose(shoebox.to3dof.MA, shoebox.MA[np.ix_(idx, idx)])
+        np.testing.assert_allclose(shoebox.to3dof.M_eff, shoebox.M_eff[np.ix_(idx, idx)])
+        np.testing.assert_allclose(shoebox.to3dof.D, shoebox.D[np.ix_(idx, idx)])
+
+    def test_to3dof_step_equivalence(self):
+        """Check that stepping the parent with a 3-element tau produces the
+        same 3-DOF states as stepping via the adapter."""
+        shoebox_a = Shoebox(L=self.L, B=self.B, T=self.T)
+        shoebox_b = Shoebox(L=self.L, B=self.B, T=self.T)
+
+        tau3 = np.array([1.0, 0.5, 0.2])
+        dt = 0.01
+
+        # Step parent with 3-element tau (parent handles expansion)
+        shoebox_a.step(tau=tau3, dt=dt)
+
+        # Step via adapter
+        shoebox_b.to3dof.step(tau=tau3, dt=dt)
+
+        eta_a3, nu_a3 = shoebox_a.get_states(dof3=True)
+        eta_b3, nu_b3 = shoebox_b.get_states(dof3=True)
+        np.testing.assert_allclose(eta_a3, eta_b3)
+        np.testing.assert_allclose(nu_a3, nu_b3)
+
 
 if __name__ == "__main__":
     unittest.main()
