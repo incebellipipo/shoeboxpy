@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/959946842.svg)](https://doi.org/10.5281/zenodo.17277252)
+
 # shoeboxpy
 
 <div align="center">
