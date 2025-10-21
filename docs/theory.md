@@ -150,8 +150,8 @@ Small‑angle moments:
 
 $$
 \mathbf{g}_{\mathrm{restoring}}(\eta) = \begin{bmatrix}
-0 \\ 0 \\ 0 \\ - m g\, \mathrm{GM}_{\phi} \, \phi \\ - m g \, \mathrm{GM}_{\theta} \, \theta \\ 0
-\end{bmatrix}.
+0, 0, 0, - m g \mathrm{GM}_{\phi} \phi, - m g \mathrm{GM}_{\theta}  \theta , 0
+\end{bmatrix}^\top.
 $$
 
 ## 5. Time Integration
