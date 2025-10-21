@@ -24,8 +24,21 @@ if errorlevel 9009 (
 )
 
 if "%1" == "" goto help
+if /I "%1" == "multiversion" goto multiversion
 
 %SPHINXBUILD% -M %1 %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% %O%
+goto end
+
+:multiversion
+set SMV=sphinx-multiversion
+%SMV% >NUL 2>NUL
+if errorlevel 9009 (
+	echo.
+	echo.The 'sphinx-multiversion' command was not found. Make sure it is installed.
+	echo.Install it with 'pip install sphinx-multiversion'.
+	exit /b 1
+)
+%SMV% %SPHINXOPTS% %O% %SOURCEDIR% %BUILDDIR%\html
 goto end
 
 :help

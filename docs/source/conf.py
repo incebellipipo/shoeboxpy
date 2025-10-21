@@ -46,6 +46,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "myst_parser",
     "sphinx.ext.githubpages",
+    "sphinx_multiversion",
 ]
 
 autosummary_generate = True
@@ -79,12 +80,25 @@ source_suffix = {
     ".md": "markdown",
 }
 
+# -- sphinx-multiversion configuration ---------------------------------------
+
+smv_tag_whitelist = r"^v\d+\.\d+(\.\d+)?$"
+smv_branch_whitelist = r"^(main|master)$"
+smv_remote_whitelist = r"^origin$"
+smv_released_pattern = r"^refs/tags/v\d+\.\d+(\.\d+)?$"
+smv_latest_version = os.environ.get("SMV_LATEST_VERSION", "master")
+smv_rename_latest_version = "latest"
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
 html_theme = "sphinx_rtd_theme"
+
+html_theme_options = {
+    "display_version": True,
+}
 
 # Project branding
 # Path to logo relative to this configuration directory
