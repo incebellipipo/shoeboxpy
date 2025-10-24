@@ -47,6 +47,17 @@ $$
 
 Often parameterised by fractions of the corresponding rigid‑body terms (e.g. $X_{\dot u} = \alpha_u m$, $K_{\dot p}=\alpha_p I_x$, etc.).
 
+Block structure of the added‑mass matrices:
+
+$$
+\mathbf{M}_{\mathrm{A}} = \begin{bmatrix}
+\mathbf{M}_{\mathrm{A,lin}} & \mathbf{0}_{3\times 3} \\
+\mathbf{0}_{3\times 3} & \mathbf{M}_{\mathrm{A,rot}}
+\end{bmatrix}
+$$
+
+Here, $\mathbf{M}_{\mathrm{RB}}$ is the rigid‑body mass and inertia matrix.
+
 Effective mass:
 
 $$
@@ -139,8 +150,8 @@ Small‑angle moments:
 
 $$
 \mathbf{g}_{\mathrm{restoring}}(\eta) = \begin{bmatrix}
-0 \\ 0 \\ 0 \\ - m g\, \mathrm{GM}_{\phi} \, \phi \\ - m g \, \mathrm{GM}_{\theta} \, \theta \\ 0
-\end{bmatrix}.
+0, 0, 0, - m g \mathrm{GM}_{\phi} \phi, - m g \mathrm{GM}_{\theta}  \theta , 0
+\end{bmatrix}^\top.
 $$
 
 ## 5. Time Integration
@@ -155,9 +166,4 @@ $$
 \mathbf{M}_{\mathrm{eff}} \dot{\nu} + (\mathbf{C}_{\mathrm{RB}} + \mathbf{C}_{\mathrm{A}})\nu + \mathbf{D}\nu = \tau + \tau_{\mathrm{ext}} + \mathbf{g}_{\mathrm{restoring}}(\eta).
 $$
 
-Implemented with classical 4th‑order Runge-Kutta (RK4) over step $\Delta t$:
-
-1. Evaluate derivatives at current state.
-2. Two midpoint evaluations (using half steps).
-3. Final endpoint evaluation.
-4. Weighted combination to advance $(\eta,\nu)$.
+Implemented with classical 4th‑order Runge-Kutta (RK4) over step $\Delta t$.

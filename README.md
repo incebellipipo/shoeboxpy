@@ -12,6 +12,20 @@
 pip install git+https://github.com/incebellipipo/shoeboxpy.git
 ```
 
+## Documentation
+
+```bash
+pip install -r requirements.docs.txt
+```
+
+To build the HTML documentation with version selectors, run:
+
+```powershell
+.\docs\make.bat multiversion
+```
+
+By default, documentation is generated for the `main` or `master` branch plus tags matching `v*`. Set `SMV_LATEST_VERSION` before building to rename a different branch to `latest`.
+
 ## Theory
 
 The `shoeboxpy` package provides simulation models for vessels with 3 and 6 degrees of freedom (DOF). These models are based on rigid-body dynamics, including added mass, damping, Coriolis/centripetal effects, and restoring forces.

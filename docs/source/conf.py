@@ -10,14 +10,27 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+import subprocess
+import re
 import os
-import sys
-# Ensure package source path is discoverable
-sys.path.insert(0, os.path.abspath('../../src'))
-try:
-    from shoeboxpy import __version__ as _pkg_version
-except Exception:
-    _pkg_version = '0.0.0'
+
+def get_latest_tag_or_master():
+    """Return latest version tag (vX.Y.Z) if exists, else 'master'."""
+    try:
+        # Fetch tags sorted by version (requires git >=2.0)
+        tags = subprocess.check_output(
+            ["git", "tag", "--list", "v*", "--sort=-v:refname"],
+            text=True
+        ).strip().splitlines()
+
+        # Filter valid semantic version tags
+        version_tags = [t for t in tags if re.match(r"^v\d+\.\d+(\.\d+)?$", t)]
+        if version_tags:
+            return version_tags[0]
+    except Exception:
+        pass
+    return "master"
+
 
 
 # -- Project information -----------------------------------------------------
@@ -25,11 +38,6 @@ except Exception:
 project = "Shoebox"
 copyright = "2025, NTNU"
 author = "Emir Cem Gezer"
-
-# The full version, including alpha/beta/rc tags
-release = _pkg_version
-version = _pkg_version
-
 
 # -- General configuration ---------------------------------------------------
 
@@ -46,6 +54,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "myst_parser",
     "sphinx.ext.githubpages",
+    "sphinx_multiversion",
 ]
 
 autosummary_generate = True
@@ -79,12 +88,26 @@ source_suffix = {
     ".md": "markdown",
 }
 
+# -- sphinx-multiversion configuration ---------------------------------------
+
+smv_tag_whitelist = r"^v\d+\.\d+(\.\d+)?$"
+smv_branch_whitelist = r"^(main|master)$"
+smv_remote_whitelist = r"^origin$"
+smv_released_pattern = r"^refs/tags/v\d+\.\d+(\.\d+)?$"
+
+smv_latest_version = get_latest_tag_or_master()
+smv_rename_latest_version = "latest"
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
 html_theme = "sphinx_rtd_theme"
+
+html_theme_options = {
+    "display_version": False,
+}
 
 # Project branding
 # Path to logo relative to this configuration directory
@@ -102,9 +125,12 @@ html_static_path = ["_static"]
 
 # Intersphinx mappings for cross-references
 intersphinx_mapping = {
-    # Second element must be None or a path/objects.inv – empty dict breaks Sphinx >=8
+    # Second element must be None or a path/objects.inv - empty dict breaks Sphinx >=8
     'python': ('https://docs.python.org/3', None),
     'numpy': ('https://numpy.org/doc/stable/', None),
 }
 
 todo_include_todos = True
+
+# ensure Sphinx copies that file to the build root
+html_extra_path = ["_root"]

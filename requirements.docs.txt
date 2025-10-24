@@ -1,5 +1,6 @@
 sphinx>=7.2.0
 sphinx_rtd_theme
+sphinx-multiversion
 readthedocs-sphinx-search
 docutils
 sphinx-hoverxref
