@@ -32,7 +32,7 @@ $$
 Rigid‑body mass-inertia matrix (no products of inertia, CG at origin):
 
 $$
-\mathbf{M}-{\mathrm{RB}} = \mathrm{diag}(m,m,m, I_x, I_y, I_z).
+\mathbf{M}_{\mathrm{RB}} = \mathrm{diag}(m,m,m, I_x, I_y, I_z).
 $$
 
 ## 2. Added Mass & Damping
