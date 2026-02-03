@@ -3,7 +3,7 @@
 # shoeboxpy
 
 <div align="center">
-    <img src="https://github.com/incebellipipo/shoeboxpy/blob/master/docs/assets/shoebox.webp" alt="shoeboxpy" width="400"/>
+    <img src="/docs/assets/shoeboxpy.png" alt="shoeboxpy" width="400"/>
 </div>
 
 ## Installation
